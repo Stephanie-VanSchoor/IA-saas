@@ -1,9 +1,10 @@
-❌ CE QUI MANQUE POUR ÊTRE COMPLÈTEMENT PROFESSIONNEL
-Élément	État	Solution
-Paiement en ligne	❌	Intégrer Stripe ou PayPal
-Authentification	❌	Ajouter email/mot de passe (Flask-Login)
-Hébergement en ligne	❌	Déployer sur Render ou VPS
-Page de paiement	❌	Créer une page de checkout
-Gestion admin	❌	Interface pour gérer les codes/ utilisateurs
-Email de confirmation	❌	Envoyer un email après achat
-Politique de confidentialité	❌	Pages légales (CGU, RGPD)
+Si tu veux un SaaS professionnel avec authentification, quotas, paiements, etc., voici ce qu'il reste à faire dans l'ordre :
+
+Étape	Description	Priorité
+1	Ajouter une base de données (SQLite) pour les utilisateurs	🔥 Haute
+2	Ajouter l'authentification (inscription / connexion)	🔥 Haute
+3	Ajouter les quotas (20 requêtes gratuites par mois)	🔥 Haute
+4	Ajouter les codes d'activation (pour monétiser)	⭐ Moyenne
+5	Ajouter PayPal / Stripe pour les paiements	⭐ Moyenne
+6	Ajouter des pages CGU / RGPD	⭐ Basse
+7	Déployer en ligne (Render.com)	🔥 Haute
