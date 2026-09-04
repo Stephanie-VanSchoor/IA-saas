@@ -16,8 +16,8 @@ app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
 
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'admin@monsaas.com')
 DB_NAME = "saas_pro.db"
-OLLAMA_URL = os.getenv('OLLAMA_URL', 'http://127.0.0.1:11434/api/generate')
-OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'mistral')  # Utilise Mistral par défaut
+OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+OLLAMA_MODEL = "phi"
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -153,7 +153,7 @@ def create_activation_code(plan, max_uses=1, expiry_days=30):
     expiry_date = datetime.datetime.now() + datetime.timedelta(days=expiry_days)
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('''INSERT INTO activation_codes (code, plan, max_uses, expiry_date) VALUES (?, ?, ?, ?)''',
+    c.execute("INSERT INTO activation_codes (code, plan, max_uses, expiry_date) VALUES (?, ?, ?, ?)",
               (code, plan, max_uses, expiry_date.isoformat()))
     conn.commit()
     conn.close()
@@ -163,7 +163,7 @@ def create_activation_code(plan, max_uses=1, expiry_days=30):
 def activate_plan_with_code(user_id, code):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('''SELECT plan, max_uses, used_count, expiry_date FROM activation_codes WHERE code = ?''', (code,))
+    c.execute("SELECT plan, max_uses, used_count, expiry_date FROM activation_codes WHERE code = ?", (code,))
     result = c.fetchone()
     if not result:
         conn.close()
@@ -176,13 +176,13 @@ def activate_plan_with_code(user_id, code):
     if used_count >= max_uses:
         conn.close()
         return None
-    c.execute('''SELECT COUNT(*) FROM user_activations WHERE user_id = ? AND code = ?''', (user_id, code))
+    c.execute("SELECT COUNT(*) FROM user_activations WHERE user_id = ? AND code = ?", (user_id, code))
     if c.fetchone()[0] > 0:
         conn.close()
         return None
-    c.execute('''INSERT INTO user_activations (user_id, code) VALUES (?, ?)''', (user_id, code))
-    c.execute('''UPDATE activation_codes SET used_count = used_count + 1 WHERE code = ?''', (code,))
-    c.execute('''UPDATE users SET plan = ? WHERE id = ?''', (plan, user_id))
+    c.execute("INSERT INTO user_activations (user_id, code) VALUES (?, ?)", (user_id, code))
+    c.execute("UPDATE activation_codes SET used_count = used_count + 1 WHERE code = ?", (code,))
+    c.execute("UPDATE users SET plan = ? WHERE id = ?", (plan, user_id))
     conn.commit()
     conn.close()
     return plan
@@ -200,57 +200,46 @@ def clean_response(text):
 
 
 # ============================================
-# HTML COMPLET (PROFESSIONNEL)
+# HTML SIMPLIFIÉ (SANS ERREUR)
 # ============================================
 HTML = """
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>🤖 IA Pro</title>
+    <title>IA Pro</title>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        * { margin:0; padding:0; box-sizing:border-box; font-family:Segoe UI, Tahoma, Geneva, Verdana, sans-serif; }
         body { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); min-height:100vh; display:flex; justify-content:center; align-items:center; padding:20px; }
-        .container { background:rgba(255,255,255,0.05); backdrop-filter:blur(20px); border-radius:30px; padding:30px; max-width:900px; width:100%; border:1px solid rgba(255,255,255,0.1); box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); }
+        .container { background:rgba(255,255,255,0.05); backdrop-filter:blur(20px); border-radius:30px; padding:30px; max-width:700px; width:100%; border:1px solid rgba(255,255,255,0.1); }
         .header { display:flex; justify-content:space-between; align-items:center; padding-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:20px; flex-wrap:wrap; gap:10px; }
         .header h1 { color:#fff; font-size:1.8rem; }
         .header h1 span { color:#a78bfa; }
         .user-info { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
         .badge { background:rgba(255,255,255,0.08); padding:8px 18px; border-radius:50px; color:#fff; border:1px solid rgba(255,255,255,0.06); font-size:0.9rem; }
         .badge strong { color:#a78bfa; }
-        .badge-admin { background:rgba(251,191,36,0.2); color:#fbbf24; border-color:rgba(251,191,36,0.2); }
-        .badge-pro { background:rgba(16,185,129,0.2); color:#10b981; border-color:rgba(16,185,129,0.2); }
-        .badge-business { background:rgba(139,92,246,0.2); color:#a78bfa; border-color:rgba(139,92,246,0.2); }
         .quota-bar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; padding:10px 15px; background:rgba(255,255,255,0.03); border-radius:15px; align-items:center; }
         .btn { padding:8px 20px; border:none; border-radius:50px; cursor:pointer; font-size:0.9rem; text-decoration:none; display:inline-block; transition:0.3s; }
         .btn:hover { transform:translateY(-2px); box-shadow:0 10px 20px rgba(0,0,0,0.2); }
         .btn-primary { background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#fff; }
         .btn-danger { background:#ef4444; color:#fff; }
         .btn-success { background:#10b981; color:#fff; }
-        .btn-admin { background:#f59e0b; color:#000; }
-        .btn-small { padding:4px 12px; font-size:0.8rem; }
         .btn-paypal { background:#0070ba; color:#fff; font-weight:bold; }
-        .messages-container { background:rgba(255,255,255,0.02); border-radius:20px; padding:20px; min-height:400px; max-height:500px; overflow-y:auto; border:1px solid rgba(255,255,255,0.05); margin-bottom:20px; }
+        .messages-container { background:rgba(255,255,255,0.02); border-radius:20px; padding:20px; min-height:300px; max-height:400px; overflow-y:auto; border:1px solid rgba(255,255,255,0.05); margin-bottom:20px; }
         .message { padding:12px 18px; border-radius:16px; margin-bottom:12px; max-width:85%; word-wrap:break-word; white-space:pre-wrap; line-height:1.6; }
         .message.bot { background:rgba(255,255,255,0.08); color:#e5e7eb; border:1px solid rgba(255,255,255,0.06); margin-right:auto; }
         .message.user { background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#fff; margin-left:auto; text-align:right; }
         .message-time { font-size:0.7rem; opacity:0.5; margin-top:5px; }
-        .message.user .message-time { text-align:right; }
         .input-area { display:flex; gap:10px; }
-        .input-area input { flex:1; padding:14px 20px; border:1px solid rgba(255,255,255,0.1); border-radius:50px; background:rgba(255,255,255,0.05); color:#fff; outline:none; font-size:1rem; }
+        .input-area input { flex:1; padding:14px 20px; border-radius:50px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#fff; outline:none; font-size:1rem; }
         .input-area input::placeholder { color:rgba(255,255,255,0.3); }
-        .input-area input:focus { border-color:#a78bfa; }
         .input-area button { padding:14px 30px; border:none; border-radius:50px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#fff; font-weight:600; cursor:pointer; transition:0.3s; }
         .input-area button:disabled { opacity:0.5; cursor:not-allowed; }
-        .error { color:#f87171; margin-top:10px; text-align:center; min-height:30px; }
-        .spinner { display:inline-block; width:18px; height:18px; border:2px solid rgba(255,255,255,0.1); border-top-color:#fff; border-radius:50%; animation:spin 0.6s linear infinite; }
-        @keyframes spin { to { transform:rotate(360deg); } }
+        .error { color:#f87171; margin-top:10px; text-align:center; }
         .auth-container { max-width:400px; margin:0 auto; padding:20px; }
         .auth-form input { width:100%; padding:14px 20px; margin-bottom:15px; border-radius:50px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#fff; font-size:1rem; outline:none; }
         .auth-form input::placeholder { color:rgba(255,255,255,0.3); }
-        .auth-form input:focus { border-color:#a78bfa; }
-        .auth-form button { width:100%; padding:14px; border:none; border-radius:50px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#fff; font-weight:600; font-size:1.1rem; cursor:pointer; transition:0.3s; }
-        .auth-form button:hover { transform:scale(1.02); }
+        .auth-form button { width:100%; padding:14px; border:none; border-radius:50px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#fff; font-weight:600; font-size:1.1rem; cursor:pointer; }
         .auth-links { text-align:center; margin-top:20px; color:rgba(255,255,255,0.6); }
         .auth-links a { color:#a78bfa; text-decoration:none; }
         .admin-section { margin-top:20px; border-top:2px solid rgba(251,191,36,0.2); padding-top:20px; }
@@ -260,8 +249,6 @@ HTML = """
         .admin-table { width:100%; color:#e5e7eb; border-collapse:collapse; font-size:0.9rem; }
         .admin-table th, .admin-table td { padding:10px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.05); }
         .admin-table th { color:#a78bfa; font-weight:600; }
-        .admin-table .text-muted { color:rgba(255,255,255,0.4); }
-        .admin-table .message-preview { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .hidden { display:none; }
         .section-title { color:#fff; font-size:1.1rem; margin-top:15px; margin-bottom:8px; }
         .pricing-card { background:rgba(255,255,255,0.03); border-radius:15px; padding:15px; border:1px solid rgba(255,255,255,0.05); margin-bottom:10px; }
@@ -275,23 +262,19 @@ HTML = """
 <body>
 <div class="container">
     <div class="header">
-        <h1>🧠 <span>IA Pro</span></h1>
+        <h1>IA <span>Pro</span></h1>
         <div class="user-info">
             {% if current_user.is_authenticated %}
-                <span class="badge">👤 {{ current_user.email }}</span>
-                <span class="badge">📋 <strong>{{ plan }}</strong></span>
-                <span class="badge">🦙 Mistral</span>
-                {% if current_user.is_admin %}
-                    <span class="badge badge-admin">⭐ Admin</span>
-                {% endif %}
-                <a href="{{ url_for('logout') }}" class="btn btn-danger btn-small">Déconnexion</a>
+                <span class="badge"> {{ current_user.email }}</span>
+                <span class="badge">Plan: <strong>{{ plan }}</strong></span>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger btn-small" style="padding:4px 12px;">Deconnexion</a>
             {% endif %}
         </div>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
-            <div class="alert alert-{{ category }}" style="padding:12px 18px; border-radius:10px; margin-bottom:10px; {% if category == 'success' %}background:rgba(16,185,129,0.2);color:#10b981;{% elif category == 'danger' %}background:rgba(239,68,68,0.2);color:#f87171;{% endif %}">
+            <div style="padding:12px 18px; border-radius:10px; margin-bottom:10px; background:rgba(16,185,129,0.2);color:#10b981;">
                 {{ message }}
             </div>
         {% endfor %}
@@ -299,16 +282,9 @@ HTML = """
 
     {% if current_user.is_authenticated %}
         <div class="quota-bar">
-            <span class="badge">⚡ Requêtes : <strong>{{ remaining }}/{{ total_limit }}</strong></span>
-            {% if plan == 'pro' %}
-                <span class="badge badge-pro">🚀 Pro</span>
-            {% elif plan == 'business' %}
-                <span class="badge badge-business">💼 Business</span>
-            {% else %}
-                <span class="badge">🧠 Free</span>
-            {% endif %}
+            <span class="badge">Requetes: <strong>{{ remaining }}/{{ total_limit }}</strong></span>
             {% if current_user.is_admin %}
-                <a href="#" onclick="toggleAdmin()" class="btn btn-admin btn-small">🛠️ Admin</a>
+                <a href="#" onclick="toggleAdmin()" class="btn btn-admin btn-small" style="background:#f59e0b;color:#000;padding:4px 12px;border-radius:50px;text-decoration:none;">Admin</a>
             {% endif %}
         </div>
 
@@ -317,60 +293,40 @@ HTML = """
                 <div class="message {% if msg.is_user %}user{% else %}bot{% endif %}">{{ msg.content | safe }}<div class="message-time">{{ msg.created_at }}</div></div>
             {% endfor %}
             {% if not messages %}
-                <div class="message bot">👋 Bonjour ! Je suis votre assistant IA professionnel (Mistral). Posez-moi n'importe quelle question.</div>
+                <div class="message bot">Bonjour ! Posez votre question.</div>
             {% endif %}
         </div>
 
         <div class="input-area">
-            <input type="text" id="userPrompt" placeholder="Posez votre question..." autofocus>
+            <input type="text" id="userPrompt" placeholder="Votre question..." autofocus>
             <button id="sendBtn" onclick="sendPrompt()" class="btn btn-primary">Envoyer</button>
         </div>
         <div id="errorMessage" class="error"></div>
 
-        <!-- SECTION ABONNEMENT -->
         {% if plan == 'free' %}
         <div style="margin-top:15px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.05);">
-            <h3 class="section-title">🔥 Passez en Pro (29€/mois)</h3>
+            <h3 class="section-title">Passer en Pro (29€/mois)</h3>
             <div class="pricing-card">
-                <h4>📋 Plan Pro</h4>
-                <ul>
-                    <li>✅ Réponses <strong>plus longues</strong> (400 tokens)</li>
-                    <li>✅ Qualité <strong>professionnelle</strong></li>
-                    <li>✅ <strong>200 requêtes</strong> par mois</li>
-                    <li>✅ Support prioritaire</li>
-                </ul>
+                <h4>Plan Pro</h4>
+                <ul><li>Reponses plus longues</li><li>200 requetes/mois</li></ul>
                 <p class="price">29€/mois</p>
             </div>
             <div class="pricing-card">
-                <h4>💼 Plan Business</h4>
-                <ul>
-                    <li>✅ Réponses <strong>maximales</strong> (600 tokens)</li>
-                    <li>✅ Qualité <strong>expert</strong></li>
-                    <li>✅ <strong>1000 requêtes</strong> par mois</li>
-                    <li>✅ Support prioritaire 24/7</li>
-                </ul>
+                <h4>Plan Business</h4>
+                <ul><li>Reponses maximales</li><li>1000 requetes/mois</li></ul>
                 <p class="price">99€/mois</p>
             </div>
-            <a href="https://paypal.me/creatydesign/29" target="_blank" class="btn btn-paypal" style="display:block; width:100%; padding:14px; border-radius:50px; text-align:center; font-size:1.1rem;">
-                💳 Payer avec PayPal
+            <a href="https://paypal.me/creatydesign/29" target="_blank" class="btn btn-paypal" style="display:block; width:100%; padding:14px; border-radius:50px; text-align:center; font-size:1.1rem; margin-bottom:10px;">
+                Payer 29€ (Pro)
             </a>
-            <p style="color:rgba(255,255,255,0.3); font-size:0.7rem; margin-top:5px;">
-                Après paiement, votre compte sera activé manuellement par l'administrateur.
-            </p>
-        </div>
-        {% elif plan == 'pro' %}
-        <div style="margin-top:15px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.05);">
-            <h3 class="section-title">🚀 Vous êtes en Pro !</h3>
-            <p style="color:rgba(255,255,255,0.5);">Merci de votre confiance. Profitez de nos services premium.</p>
             <a href="https://paypal.me/creatydesign/99" target="_blank" class="btn btn-paypal" style="display:block; width:100%; padding:14px; border-radius:50px; text-align:center; font-size:1.1rem;">
-                💳 Passer en Business (99€/mois)
+                Payer 99€ (Business)
             </a>
         </div>
         {% endif %}
 
-        <!-- CODES D'ACTIVATION -->
         <div style="margin-top:15px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.05);">
-            <h3 class="section-title">🎁 Code d'activation</h3>
+            <h3 class="section-title">Code d'activation</h3>
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
                 <input type="text" id="redeemCode" placeholder="Entrez votre code..." style="flex:1; padding:10px 18px; border-radius:50px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#fff; outline:none;">
                 <button onclick="redeemCode()" class="btn btn-success">Activer</button>
@@ -378,13 +334,12 @@ HTML = """
             <div id="redeemMessage" style="color:rgba(255,255,255,0.6); margin-top:8px;"></div>
         </div>
 
-        <!-- PANEL ADMIN -->
         <div id="adminPanel" class="admin-section hidden">
-            <h2>🛠️ Administration</h2>
+            <h2>Administration</h2>
             <div class="admin-card">
-                <h3>👥 Utilisateurs</h3>
+                <h3>Utilisateurs</h3>
                 <table class="admin-table">
-                    <thead><tr><th>Email</th><th>Plan</th><th>Requêtes</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Email</th><th>Plan</th><th>Requetes</th><th>Actions</th></tr></thead>
                     <tbody>
                         {% for u in users %}
                         <tr>
@@ -393,11 +348,11 @@ HTML = """
                             <td>{{ u[3] }}</td>
                             <td>
                                 {% if u[1] != admin_email %}
-                                    <button class="btn btn-success btn-small" onclick="changePlan('{{ u[0] }}', 'pro')">Pro</button>
-                                    <button class="btn btn-admin btn-small" onclick="changePlan('{{ u[0] }}', 'business')">Business</button>
-                                    <button class="btn btn-danger btn-small" onclick="resetQuota('{{ u[0] }}')">Reset</button>
+                                    <button class="btn btn-success btn-small" onclick="changePlan('{{ u[0] }}', 'pro')" style="background:#10b981;color:#fff;border:none;padding:4px 12px;border-radius:20px;cursor:pointer;">Pro</button>
+                                    <button class="btn btn-admin btn-small" onclick="changePlan('{{ u[0] }}', 'business')" style="background:#f59e0b;color:#000;border:none;padding:4px 12px;border-radius:20px;cursor:pointer;">Business</button>
+                                    <button class="btn btn-danger btn-small" onclick="resetQuota('{{ u[0] }}')" style="background:#ef4444;color:#fff;border:none;padding:4px 12px;border-radius:20px;cursor:pointer;">Reset</button>
                                 {% else %}
-                                    <span class="text-muted">⭐ Admin</span>
+                                    <span style="color:rgba(255,255,255,0.4);">Admin</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -406,7 +361,7 @@ HTML = """
                 </table>
             </div>
             <div class="admin-card">
-                <h3>🎫 Générer un code</h3>
+                <h3>Generer un code</h3>
                 <form id="codeForm" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                     <select id="planSelect" style="padding:10px 18px; border-radius:50px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#fff; outline:none;">
                         <option value="pro">Pro</option>
@@ -414,20 +369,20 @@ HTML = """
                     </select>
                     <input type="number" id="maxUses" value="1" style="padding:10px 18px; border-radius:50px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#fff; width:100px; outline:none;">
                     <input type="number" id="expiryDays" value="30" style="padding:10px 18px; border-radius:50px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:#fff; width:100px; outline:none;">
-                    <button type="submit" class="btn btn-primary">Générer</button>
+                    <button type="submit" class="btn btn-primary">Generer</button>
                 </form>
                 <div id="codeResult" style="color:#10b981; margin-top:8px;"></div>
             </div>
             <div class="admin-card">
-                <h3>📊 Statistiques</h3>
-                <p style="color:rgba(255,255,255,0.6);">Total utilisateurs : {{ users|length }}<br>Messages envoyés : {{ total_messages }}</p>
+                <h3>Statistiques</h3>
+                <p style="color:rgba(255,255,255,0.6);">Total utilisateurs : {{ users|length }}<br>Messages envoyes : {{ total_messages }}</p>
             </div>
         </div>
 
     {% else %}
         {% if request.path == '/login' %}
             <div class="auth-container">
-                <h2 style="color:#fff; text-align:center; margin-bottom:30px;">🔐 Connexion</h2>
+                <h2 style="color:#fff; text-align:center; margin-bottom:30px;">Connexion</h2>
                 <form method="POST" class="auth-form">
                     <input type="email" name="email" placeholder="Email" required>
                     <input type="password" name="password" placeholder="Mot de passe" required>
@@ -437,29 +392,29 @@ HTML = """
             </div>
         {% elif request.path == '/register' %}
             <div class="auth-container">
-                <h2 style="color:#fff; text-align:center; margin-bottom:30px;">📝 Inscription</h2>
+                <h2 style="color:#fff; text-align:center; margin-bottom:30px;">Inscription</h2>
                 <form method="POST" class="auth-form">
                     <input type="email" name="email" placeholder="Email" required>
                     <input type="password" name="password" placeholder="Mot de passe" required>
                     <input type="password" name="confirm_password" placeholder="Confirmer" required>
-                    <button type="submit">Créer mon compte</button>
+                    <button type="submit">Creer mon compte</button>
                 </form>
-                <div class="auth-links">Déjà un compte ? <a href="{{ url_for('login') }}">Se connecter</a></div>
+                <div class="auth-links">Deja un compte ? <a href="{{ url_for('login') }}">Se connecter</a></div>
             </div>
         {% else %}
             <div style="text-align:center; padding:40px 0;">
-                <h2 style="color:#fff; font-size:2rem; margin-bottom:20px;">🤖 IA Pro</h2>
-                <p style="color:rgba(255,255,255,0.5); margin-bottom:30px;">Assistant professionnel avec Mistral</p>
+                <h2 style="color:#fff; font-size:2rem; margin-bottom:20px;">IA Pro</h2>
+                <p style="color:rgba(255,255,255,0.5); margin-bottom:30px;">Assistant professionnel</p>
                 <div style="display:flex; gap:15px; justify-content:center; flex-wrap:wrap;">
-                    <a href="{{ url_for('login') }}" class="btn btn-primary" style="padding:14px 40px; font-size:1.1rem;">🔐 Connexion</a>
-                    <a href="{{ url_for('register') }}" class="btn" style="padding:14px 40px; font-size:1.1rem; background:rgba(255,255,255,0.08); color:#fff;">📝 Inscription</a>
+                    <a href="{{ url_for('login') }}" class="btn btn-primary" style="padding:14px 40px; font-size:1.1rem;">Connexion</a>
+                    <a href="{{ url_for('register') }}" class="btn" style="padding:14px 40px; font-size:1.1rem; background:rgba(255,255,255,0.08); color:#fff;">Inscription</a>
                 </div>
             </div>
         {% endif %}
     {% endif %}
 
     <div style="margin-top:20px; padding-top:15px; border-top:1px solid rgba(255,255,255,0.05); text-align:center; color:rgba(255,255,255,0.2); font-size:0.7rem;">
-        🧠 Propulsé par Mistral (Ollama) • IA Pro v5.0
+        IA Pro v1.0
     </div>
 </div>
 
@@ -468,7 +423,7 @@ HTML = """
         const input = document.getElementById('userPrompt');
         const prompt = input.value.trim();
         if (!prompt) {
-            document.getElementById('errorMessage').textContent = '❌ Veuillez écrire une question.';
+            document.getElementById('errorMessage').textContent = 'Veuillez ecrire une question.';
             return;
         }
         const messagesDiv = document.getElementById('messages');
@@ -481,7 +436,7 @@ HTML = """
         document.getElementById('errorMessage').textContent = '';
         const btn = document.getElementById('sendBtn');
         btn.disabled = true;
-        btn.innerHTML = '⏳ Réflexion...';
+        btn.innerHTML = 'Reflexion...';
         fetch('/ask', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -491,17 +446,16 @@ HTML = """
         .then(data => {
             const botMsg = document.createElement('div');
             botMsg.className = 'message bot';
-            botMsg.innerHTML = data.answer || 'Pas de réponse';
+            botMsg.innerHTML = data.answer || 'Pas de reponse';
             messagesDiv.appendChild(botMsg);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
             const quota = document.querySelector('.quota-bar .badge:first-child');
             if (quota && data.remaining !== undefined) {
-                quota.innerHTML = '⚡ Requêtes : <strong>' + data.remaining + '/' + data.total_limit + '</strong>';
+                quota.innerHTML = 'Requetes: <strong>' + data.remaining + '/' + data.total_limit + '</strong>';
             }
         })
         .catch(error => {
-            document.getElementById('errorMessage').textContent = '❌ Erreur : Ollama est-il lancé ? (lancez "ollama serve")';
-            console.error('Erreur:', error);
+            document.getElementById('errorMessage').textContent = 'Erreur : Ollama est-il lance ? (lancez "ollama serve")';
         })
         .finally(() => {
             btn.disabled = false;
@@ -514,8 +468,8 @@ HTML = """
         const input = document.getElementById('redeemCode');
         const msg = document.getElementById('redeemMessage');
         const code = input.value.trim().toUpperCase();
-        if (!code) { msg.textContent = '❌ Entrez un code'; return; }
-        msg.textContent = '⏳ Vérification...';
+        if (!code) { msg.textContent = 'Entrez un code'; return; }
+        msg.textContent = 'Verification...';
         try {
             const response = await fetch('/redeem', {
                 method: 'POST',
@@ -524,15 +478,15 @@ HTML = """
             });
             const data = await response.json();
             if (response.ok) {
-                msg.textContent = '✅ ' + data.message;
+                msg.textContent = data.message;
                 const plan = document.querySelector('.quota-bar .badge:nth-child(2)');
-                if (plan) plan.innerHTML = '📋 Plan : <strong>' + data.plan + '</strong>';
+                if (plan) plan.innerHTML = 'Plan: <strong>' + data.plan + '</strong>';
                 input.value = '';
                 location.reload();
             } else {
-                msg.textContent = '❌ ' + data.error;
+                msg.textContent = data.error;
             }
-        } catch(e) { msg.textContent = '❌ Erreur réseau'; }
+        } catch(e) { msg.textContent = 'Erreur reseau'; }
     }
 
     function toggleAdmin() {
@@ -552,7 +506,7 @@ HTML = """
     }
 
     async function resetQuota(userId) {
-        if (!confirm('Réinitialiser le quota ?')) return;
+        if (!confirm('Reinitialiser le quota ?')) return;
         const response = await fetch('/admin/reset-quota', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -576,7 +530,7 @@ HTML = """
                     body: JSON.stringify({ plan, max_uses, expiry_days })
                 });
                 const data = await response.json();
-                document.getElementById('codeResult').textContent = '🎫 Code : ' + data.code;
+                document.getElementById('codeResult').textContent = 'Code : ' + data.code;
             };
         }
         const input = document.getElementById('userPrompt');
@@ -595,7 +549,7 @@ HTML = """
 
 
 # ============================================
-# ROUTES AUTH
+# ROUTES
 # ============================================
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -607,13 +561,13 @@ def register():
         password = request.form.get('password')
         confirm = request.form.get('confirm_password')
         if password != confirm:
-            flash('Les mots de passe ne correspondent pas', 'danger')
+            flash('Les mots de passe ne correspondent pas')
             return render_template_string(HTML, request=request, admin_email=ADMIN_EMAIL)
         if get_user_by_email(email):
-            flash('Cet email est déjà utilisé', 'danger')
+            flash('Cet email est deja utilise')
             return render_template_string(HTML, request=request, admin_email=ADMIN_EMAIL)
         create_user(email, password)
-        flash('Compte créé ! Connectez-vous.', 'success')
+        flash('Compte cree ! Connectez-vous.')
         return redirect(url_for('login'))
     return render_template_string(HTML, request=request, admin_email=ADMIN_EMAIL)
 
@@ -628,10 +582,10 @@ def login():
         user = get_user_by_email(email)
         if user and bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8')):
             login_user(user)
-            flash('Connecté !', 'success')
+            flash('Connecte !')
             return redirect(url_for('index'))
         else:
-            flash('Email ou mot de passe incorrect', 'danger')
+            flash('Email ou mot de passe incorrect')
     return render_template_string(HTML, request=request, admin_email=ADMIN_EMAIL)
 
 
@@ -639,13 +593,9 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash('Déconnecté', 'info')
+    flash('Deconnecte')
     return redirect(url_for('login'))
 
-
-# ============================================
-# ROUTE INDEX
-# ============================================
 
 @app.route('/')
 @login_required
@@ -686,10 +636,6 @@ def index():
                                   admin_email=ADMIN_EMAIL)
 
 
-# ============================================
-# ROUTE ASK (OLLAMA + MISTRAL - GRATUIT)
-# ============================================
-
 @app.route('/ask', methods=['POST'])
 @login_required
 def ask():
@@ -714,92 +660,41 @@ def ask():
     conn.commit()
 
     try:
-        print(f"📩 Question : {prompt}")
-
-        # Différenciation selon le plan
-        plan = user_data['plan']
-        if plan == 'business':
-            max_tokens = 600
-            temp = 0.4
-            system = "Tu es un expert de niveau Sénior. Réponds de manière très complète, structurée et professionnelle."
-        elif plan == 'pro':
-            max_tokens = 400
-            temp = 0.3
-            system = "Tu es un professionnel. Réponds de manière structurée, utile et précise."
-        else:  # free
-            max_tokens = 200
-            temp = 0.2
-            system = "Tu es un assistant. Réponds de manière concise, utile et structurée."
-
-        # Appel à Ollama avec Mistral
+        print(f"Question : {prompt}")
         payload = {
             "model": OLLAMA_MODEL,
-            "prompt": f"""{system}
-
-RÈGLES OBLIGATOIRES :
-1. Structure TA réponse avec :
-   **Titre principal**
-   - Point 1 avec explication claire
-   - Point 2 avec explication claire
-   - Point 3 avec explication claire
-   **Exemple** (si pertinent)
-   **Conclusion** (1 phrase)
-
-2. Pour les cours de langue : donne des PHRASES UTILES avec traduction.
-
-3. Pour les conseils : donne des étapes NUMÉROTÉES (1., 2., 3.).
-
-4. Si tu ne sais pas, dis "Je ne sais pas" (n'invente JAMAIS).
-
-5. Réponds dans la LANGUE de la question.
-
-Question : {prompt}""",
+            "prompt": f"Tu es un assistant utile. Reponds simplement. Question : {prompt}",
             "stream": False,
-            "options": {
-                "temperature": temp,
-                "num_predict": max_tokens
-            }
+            "options": {"temperature": 0.3, "num_predict": 300}
         }
-
         response = requests.post(OLLAMA_URL, json=payload, timeout=120)
         if response.status_code == 200:
-            raw_answer = response.json().get('response', 'Pas de réponse')
+            raw_answer = response.json().get('response', 'Pas de reponse')
             answer = clean_response(raw_answer)
         else:
-            answer = "❌ L'IA ne répond pas. Vérifiez que le modèle est installé."
-
-    except requests.exceptions.Timeout:
-        answer = "⏳ L'IA met trop de temps. Essayez une question plus courte."
-    except requests.exceptions.ConnectionError:
-        answer = "❌ Ollama n'est pas lancé. Démarrez 'ollama serve' dans un terminal."
+            answer = "Erreur"
     except Exception as e:
-        print(f"❌ ERREUR : {e}")
-        answer = "❌ Erreur technique. Réessayez."
+        print(f"Erreur : {e}")
+        answer = f"Erreur : {str(e)}"
 
     c.execute("INSERT INTO messages (user_id, content, is_user) VALUES (?, ?, 0)", (user.id, answer))
     c.execute("UPDATE users SET requests_used = requests_used + 1 WHERE id = ?", (user.id,))
     conn.commit()
     conn.close()
 
-    new_remaining = remaining - 1
-
     return jsonify({
         'answer': answer,
-        'remaining': new_remaining,
+        'remaining': remaining - 1,
         'total_limit': limit,
         'plan': user_data['plan']
     })
 
 
-# ============================================
-# ROUTES ADMIN
-# ============================================
-
 @app.route('/admin/change-plan', methods=['POST'])
 @login_required
 def admin_change_plan():
     if current_user.email != ADMIN_EMAIL:
-        return jsonify({'error': 'Non autorisé'}), 401
+        return jsonify({'error': 'Non autorise'}), 401
     data = request.get_json()
     user_id = data.get('user_id')
     new_plan = data.get('plan')
@@ -811,7 +706,7 @@ def admin_change_plan():
 @login_required
 def admin_reset_quota():
     if current_user.email != ADMIN_EMAIL:
-        return jsonify({'error': 'Non autorisé'}), 401
+        return jsonify({'error': 'Non autorise'}), 401
     data = request.get_json()
     user_id = data.get('user_id')
     conn = sqlite3.connect(DB_NAME)
@@ -826,7 +721,7 @@ def admin_reset_quota():
 @login_required
 def admin_generate_code():
     if current_user.email != ADMIN_EMAIL:
-        return jsonify({'error': 'Non autorisé'}), 401
+        return jsonify({'error': 'Non autorise'}), 401
     data = request.get_json()
     plan = data.get('plan', 'pro')
     max_uses = int(data.get('max_uses', 1))
@@ -834,10 +729,6 @@ def admin_generate_code():
     code = create_activation_code(plan, max_uses, expiry_days)
     return jsonify({'code': code})
 
-
-# ============================================
-# ROUTE REDEEM
-# ============================================
 
 @app.route('/redeem', methods=['POST'])
 @login_required
@@ -853,7 +744,7 @@ def redeem():
     limit = get_plan_limit(user.plan)
     remaining = limit - user.requests_used
     return jsonify({
-        'message': f'Passé au plan {new_plan} !',
+        'message': f'Passe au plan {new_plan} !',
         'plan': new_plan,
         'remaining': remaining,
         'total_limit': limit
@@ -861,4 +752,13 @@ def redeem():
 
 
 if __name__ == '__main__':
+    print("""
+    ╔═══════════════════════════════════════════╗
+    ║   IA Pro - Lancement...                  ║
+    ║   http://127.0.0.1:8080                   ║
+    ╚═══════════════════════════════════════════╝
+    """)
     app.run(debug=True, host='0.0.0.0', port=8080)
+
+
+
