@@ -1,6 +1,7 @@
+SECRET_KEY=MaSuperCleSecrete2026
 ADMIN_EMAIL=leurquinstephanie@gmail.com
-SECRET_KEY=MaSuperCleSecreteSansCaracteresSpeciaux2026
-MAIL_USERNAME=ton_email@gmail.com
-MAIL_PASSWORD=ton_mot_de_passe
-PAYPAL_CLIENT_ID=ton_id
-PAYPAL_CLIENT_SECRET=ton_secret
+DATABASE_URL=sqlite:///saas_pro.db
+OLLAMA_URL=http://127.0.0.1:11434/api/generate
+OLLAMA_MODEL=llama3.2:3b
+GROQ_API_KEY=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
+USE_GROQ=true
