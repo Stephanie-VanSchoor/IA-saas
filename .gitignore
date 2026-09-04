@@ -1,5 +1,5 @@
 ADMIN_EMAIL=leurquinstephanie@gmail.com
-SECRET_KEY=XyZ9876%$#@!MaNouvelleCleSuperSecrete2026
+SECRET_KEY="XyZ9876%$#@!MaNouvelleCleSuperSecrete2026"
 MAIL_USERNAME=ton_email@gmail.com
 MAIL_PASSWORD=ton_mot_de_passe
 PAYPAL_CLIENT_ID=ton_id
