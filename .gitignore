@@ -1,0 +1,4 @@
+MAIL_USERNAME=ton_email@gmail.com
+MAIL_PASSWORD=ton_mot_de_passe
+PAYPAL_CLIENT_ID=ton_id
+PAYPAL_CLIENT_SECRET=ton_secret
