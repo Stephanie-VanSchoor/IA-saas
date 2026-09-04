@@ -5,3 +5,4 @@ Flask-Login==0.6.3
 Flask-Mail==0.10.0
 bcrypt==4.1.2
 paypalrestsdk==1.13.0
+gunicorn==23.0.0
