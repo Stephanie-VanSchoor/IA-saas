@@ -3,3 +3,5 @@ ADMIN_EMAIL=leurquinstephanie@gmail.com
 DATABASE_URL=sqlite:///saas_pro.db
 OLLAMA_URL=http://127.0.0.1:11434/api/generate
 OLLAMA_MODEL=mistral   # <--- CHANGEMENT ICI
+HUGGINGFACE_TOKEN=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
+USE_HUGGINGFACE=true
