@@ -13,6 +13,9 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
 
+# Récupération de l'email administrateur depuis le .env
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')
+
 DB_NAME = "saas.db"
 
 # Flask-Login
@@ -175,7 +178,7 @@ def activate_plan_with_code(user_id, code):
     return plan
 
 # ============================================
-# HTML COMPLET (avec formulaires d'auth)
+# HTML COMPLET (avec footer CGU + RGPD) - CORRIGÉ
 # ============================================
 HTML = """
 <!DOCTYPE html>
@@ -226,6 +229,9 @@ HTML = """
         .auth-form button:hover { transform:scale(1.02); }
         .auth-links { text-align:center; margin-top:15px; color:rgba(255,255,255,0.6); }
         .auth-links a { color:#a78bfa; text-decoration:none; }
+        .legal-footer { color:rgba(255,255,255,0.2); font-size:0.7rem; margin-top:15px; text-align:center; display:flex; justify-content:center; gap:15px; flex-wrap:wrap; }
+        .legal-footer a { color:rgba(255,255,255,0.3); text-decoration:none; }
+        .legal-footer a:hover { color:#a78bfa; }
     </style>
 </head>
 <body>
@@ -244,7 +250,8 @@ HTML = """
             <span class="badge">👤 {{ current_user.email }}</span>
             <a href="{{ url_for('logout') }}" class="btn btn-danger" style="padding:4px 12px;">Déconnexion</a>
         </div>
-        {% if current_user.email == 'admin@monsaas.com' %}
+        <!-- VÉRIFICATION ADMIN AVEC LA VARIABLE admin_email -->
+        {% if current_user.email == admin_email %}
             <div style="margin-bottom:10px;">
                 <a href="#" onclick="toggleAdmin()" class="btn btn-primary">🛠️ Admin</a>
             </div>
@@ -314,8 +321,8 @@ HTML = """
             <div id="redeemMessage" style="color:rgba(255,255,255,0.6); margin-top:8px;"></div>
         </div>
 
-        <!-- Admin Panel (visible uniquement pour admin) -->
-        {% if current_user.email == 'admin@monsaas.com' %}
+        <!-- Admin Panel (visible uniquement si admin) -->
+        {% if current_user.email == admin_email %}
         <div id="adminPanel" class="section" style="border-top:2px solid #667eea;">
             <h3 style="color:#a78bfa;">🛠️ Administration</h3>
             <h4 style="color:white;">Utilisateurs</h4>
@@ -347,8 +354,15 @@ HTML = """
         {% endif %}
     {% endif %}
 
-    <div style="color:rgba(255,255,255,0.2); font-size:0.7rem; margin-top:15px; text-align:center;">
-        🦙 Built with Llama by Meta
+    <!-- =========================================== -->
+    <!-- FOOTER AVEC CGU + RGPD                     -->
+    <!-- =========================================== -->
+    <div class="legal-footer">
+        <span>🦙 Built with Llama by Meta</span>
+        <span>|</span>
+        <a href="{{ url_for('cgu') }}">CGU</a>
+        <span>|</span>
+        <a href="{{ url_for('rgpd') }}">RGPD</a>
     </div>
 </div>
 
@@ -480,6 +494,8 @@ HTML = """
 @app.route('/')
 @login_required
 def index():
+    # On récupère l'email admin depuis la variable globale
+    admin_email = ADMIN_EMAIL
     user = get_user_by_email(current_user.email)
     user_data = user.__dict__
     user_data = reset_quota_if_needed(user_data)
@@ -500,7 +516,8 @@ def index():
                                   total_limit=limit,
                                   users=users,
                                   codes=codes,
-                                  request=request)
+                                  request=request,
+                                  admin_email=admin_email)  # On passe la variable
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -540,6 +557,106 @@ def logout():
     flash('Déconnecté', 'info')
     return redirect(url_for('login'))
 
+# ============================================
+# PAGES LÉGALES (CGU / RGPD)
+# ============================================
+@app.route('/cgu')
+def cgu():
+    return render_template_string("""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Conditions Générales d'Utilisation</title>
+    <style>
+        body { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); min-height:100vh; display:flex; justify-content:center; align-items:center; padding:20px; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .container { background:rgba(255,255,255,0.05); backdrop-filter:blur(20px); border-radius:30px; padding:40px; max-width:800px; width:100%; border:1px solid rgba(255,255,255,0.1); box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); color:#fff; }
+        h1 { color:#a78bfa; font-size:2rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px; }
+        h2 { color:#e5e7eb; font-size:1.2rem; margin-top:20px; }
+        p, ul { color:rgba(255,255,255,0.7); line-height:1.8; }
+        .back { display:inline-block; margin-top:20px; padding:10px 25px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius:50px; color:#fff; text-decoration:none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📜 Conditions Générales d'Utilisation</h1>
+    <p><strong>Dernière mise à jour :</strong> Septembre 2026</p>
+    <h2>1. Présentation</h2>
+    <p>Bienvenue sur <strong>Mon SaaS IA</strong>. Notre service propose un assistant IA pour le e-commerce.</p>
+    <h2>2. Acceptation</h2>
+    <p>En créant un compte, vous acceptez les présentes conditions.</p>
+    <h2>3. Compte utilisateur</h2>
+    <p>Vous êtes responsable de la confidentialité de votre mot de passe.</p>
+    <h2>4. Utilisation</h2>
+    <ul>
+        <li>Service fourni "en l'état".</li>
+        <li>Utilisation à des fins légales uniquement.</li>
+        <li>Requêtes limitées selon votre plan (Free: 20/mois, Pro: 200/mois, Business: 1000/mois).</li>
+    </ul>
+    <h2>5. Propriété intellectuelle</h2>
+    <p>Le code, l'interface et le contenu généré sont protégés.</p>
+    <h2>6. Responsabilité</h2>
+    <p>L'IA est un outil d'aide, pas un conseil juridique ou financier.</p>
+    <h2>7. Contact</h2>
+    <p>support@monsaasia.com</p>
+    <a href="{{ url_for('index') }}" class="back">⬅ Retour</a>
+</div>
+</body>
+</html>
+    """)
+
+@app.route('/rgpd')
+def rgpd():
+    return render_template_string("""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Politique de Confidentialité</title>
+    <style>
+        body { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); min-height:100vh; display:flex; justify-content:center; align-items:center; padding:20px; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .container { background:rgba(255,255,255,0.05); backdrop-filter:blur(20px); border-radius:30px; padding:40px; max-width:800px; width:100%; border:1px solid rgba(255,255,255,0.1); box-shadow:0 25px 50px -12px rgba(0,0,0,0.5); color:#fff; }
+        h1 { color:#a78bfa; font-size:2rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:15px; }
+        h2 { color:#e5e7eb; font-size:1.2rem; margin-top:20px; }
+        p, ul { color:rgba(255,255,255,0.7); line-height:1.8; }
+        .back { display:inline-block; margin-top:20px; padding:10px 25px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius:50px; color:#fff; text-decoration:none; }
+        .highlight { color:#a78bfa; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔒 Politique de Confidentialité (RGPD)</h1>
+    <p><strong>Dernière mise à jour :</strong> Septembre 2026</p>
+    <h2>1. Données collectées</h2>
+    <ul>
+        <li>Email (pour le compte)</li>
+        <li>Historique des requêtes (anonymisé)</li>
+        <li>Données de paiement (traitées par PayPal/Stripe)</li>
+    </ul>
+    <h2>2. Utilisation</h2>
+    <ul>
+        <li>Accès à l'assistant IA</li>
+        <li>Gestion des quotas et abonnements</li>
+        <li>Notifications (quota, paiement)</li>
+    </ul>
+    <h2>3. Partage</h2>
+    <p>Nous ne partageons pas vos données avec des tiers, sauf obligation légale.</p>
+    <h2>4. Vos droits (RGPD)</h2>
+    <ul>
+        <li>Accès, rectification, effacement, portabilité</li>
+    </ul>
+    <p>Contact : <span class="highlight">support@monsaasia.com</span></p>
+    <h2>5. Cookies</h2>
+    <p>Cookies de session uniquement.</p>
+    <a href="{{ url_for('index') }}" class="back">⬅ Retour</a>
+</div>
+</body>
+</html>
+    """)
+
+# ============================================
+# ROUTES PRINCIPALES (IA, Admin, Redeem)
+# ============================================
 @app.route('/ask', methods=['POST'])
 @login_required
 def ask():
@@ -581,7 +698,8 @@ def ask():
 @app.route('/admin/generate-code', methods=['POST'])
 @login_required
 def generate_code():
-    if current_user.email != 'admin@monsaas.com':
+    # Utilisation de la variable globale ADMIN_EMAIL
+    if current_user.email != ADMIN_EMAIL:
         return jsonify({'error': 'Non autorisé'}), 401
     data = request.get_json()
     plan = data.get('plan', 'pro')
